@@ -6,6 +6,8 @@ library(ggplot2)
 library(pheatmap)
 library(tidyr)
 library(RColorBrewer)
+library(tibble)
+
 #Read Data
 fpkm_0 <- read.table('/projectnb/bf528/users/lava_lamp/project_2/P0_1_cufflinks/genes.fpkm_tracking', header = TRUE)
 fpkm_0 <- fpkm_0  %>%  select(FPKM, tracking_id, gene_short_name)
@@ -20,10 +22,14 @@ fpkm_combined <- merge(fpkm_0, fpkm_matrix, by = 'tracking_id')
 fpkm_combined <- fpkm_combined %>% relocate(P0_1, .after = Ad_2)
 fpkm_combined
 #-----------------------------------7.1
-gene_list = c('Pdlim5', 'Pygm', 'Myoz2', 'Des', 'Csrp3', 'Tcap', 'Cryab')
+sarc_list <- c('Pdlim5', 'Pygm', 'Myoz2', 'Des', 'Csrp3', 'Tcap', 'Cryab')
+mito_list <- c("Mpc1","Prdx3","Acat1","Echs1","Slc25a11","Phyh")
+cell_list <- c("Cdc7","E2f8","Cdk7","Cdc26","Cdc6","Cdc27",
+            "E2f1","Cdc45","Rad51","Aurkb","Cdc23")
+
 f <- fpkm_combined[fpkm_combined$gene_short_name %in% gene_list, ][-1]
 f <- f %>% relocate(Ad_1, .after = P7_2)
-f <- f %>% relocate(Ad_2, .after = Ad_1)
+f <- f %>% relocate(Ad_2, .after = Ad_1)  %>% select(gene_short_name, P0_1, P4_1, P7_1, Ad_1) #not sure to average or not
 e <- f[-1]
 row.names(e) <- f$gene_short_name
 e <- as.data.frame(t(e))
@@ -46,30 +52,39 @@ line_plot
 dev.off()
 
 #-----------------------------------7.2
+upreg_genes <- read.csv("UpReg_genes.txt",header=F,stringsAsFactors=F)
+
+names(top_up_clus) <- top_up_clus[2,]
+top_up_clus <- top_up_clus %>%
+  filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
 
 
-
-
+top_up_clus <- read.csv("/projectnb/bf528/users/saxophone/project2/upreg_paper_reference.csv",header=F,stringsAsFactors=F)
+colnames(top_up_clus) <- top_up_clus[2,]
 #-----------------------------------7.3
+
+#average duplicates
+fpkm_combined <- fpkm_combined[-1]
+fpkm_combined_1 <- aggregate(.~gene_short_name, data=fpkm_combined, mean)
+
 #get significant genes, get top 100 deferentially expressed genes 
-list_de_genes  <- list_de_genes %>% arrange(q_value)  %>% slice_head(n=1000)
-list_de_genes  <- list_de_genes[list_de_genes$significant =='yes',]
-top  <- list_de_genes %>% arrange(q_value)  %>% slice_head(n=100)
+#list_de_genes  <- list_de_genes %>% arrange(q_value)  %>% slice_head(n=1000)
+sig_de_genes  <- list_de_genes[list_de_genes$significant =='yes',]
+top  <- sig_de_genes %>% arrange(q_value)  %>% slice_head(n=120)
 deg <- top$gene
+length(unique(deg))
 
 #subset to top 100 genes 
-fpkm_combined_sub <- fpkm_combined[fpkm_combined$gene_short_name %in% deg, ]
+fpkm_combined_sub <- fpkm_combined_1[fpkm_combined_1$gene_short_name %in% deg, ]
 
  
 #reformat create final_fpkm_combined and make genes row names, remove rows with all 0
 
-final_fpkm_combined <- fpkm_combined_sub[-1:-2]
-rownames(final_fpkm_combined) <- make.names(fpkm_combined[,2], unique = TRUE)
-#row.names(final_fpkm_combined) <- fpkm_combined$gene_short_name
-final_fpkm_combined <- final_fpkm_combined[apply(final_fpkm_combined[,-1], 1, function(x) !all(x==0)),]
+rownames( fpkm_combined_sub ) <- NULL
+fpkm_combined_sub <- data.frame(column_to_rownames(fpkm_combined_sub, var = "gene_short_name"))
 
 #convert to matrix for heatmap
-a <- as.matrix(final_fpkm_combined[,])
+a <- as.matrix(fpkm_combined_sub[,])
 
 # colors for heatmap 
 my_colors = brewer.pal(n = 11, name = "RdBu")
