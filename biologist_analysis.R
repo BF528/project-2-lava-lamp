@@ -84,24 +84,51 @@ for (i in lists) {
 
 # Additional plot code used for formatting using patchwork for layout however 
 #has issues running in for loop therefore kept the raw graphs above in loop 
-# p1 + p2 + plot_spacer() + plot_spacer() + 
-#   plot_annotation(title = titles[w],
-#                   tag_levels = 'i',
-#                   tag_suffix = ')')
+# p1 + p2 + plot_spacer() + plot_spacer() + plot_annotation(title = titles[w],tag_levels = 'i', tag_suffix = ')')
                     
 
 dev.off()
 
 #-----------------------------------7.2
-upreg_genes <- read.csv("UpReg_genes.txt",header=F,stringsAsFactors=F)
+#up regulated ------
+#read in reference paper analysis
+paper_up_reg <- read.csv("upreg_paperreference.csv", stringsAsFactors=FALSE, header = FALSE)  
+colnames(paper_up_reg) <- paper_up_reg[2,] 
+paper_up_reg <- paper_up_reg %>%
+  filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
 
-names(top_up_clus) <- top_up_clus[2,]
-top_up_clus <- top_up_clus %>%
+#get go terms 
+terms <- paper_up_reg$Term
+
+#read in our analysis  
+my_up_reg <- read.csv("Up_Reg_Clusters.txt",header=F,stringsAsFactors=F, sep = '\t')
+colnames(my_up_reg) <- my_up_reg[2,]
+my_up_reg <- my_up_reg %>%
+  filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
+
+my_up_reg$Paper_ref_overlap <- my_up_reg$Term %in% terms
+write.csv(my_up_reg,"Up_regulated_extended.csv")
+
+
+#down regulated ---------
+#read in reference paper analysis
+paper_down_reg <- read.csv("upreg_paperreference.csv", stringsAsFactors=FALSE, header = FALSE)  
+colnames(paper_down_reg) <- paper_down_reg[2,] 
+paper_down_reg <- paper_down_reg %>%
   filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
 
 
-top_up_clus <- read.csv("/projectnb/bf528/users/saxophone/project2/upreg_paper_reference.csv",header=F,stringsAsFactors=F)
-colnames(top_up_clus) <- top_up_clus[2,]
+#get go terms 
+terms <- paper_down_reg$Term
+
+#read our data
+my_down_reg <- read.csv("Down_Reg_clusters.txt",header=F,stringsAsFactors=F, sep = '\t')
+colnames(my_down_reg) <- my_down_reg[2,]
+my_down_reg <- my_down_reg %>%
+  filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
+
+my_down_reg$Paper_ref_overlap <- my_down_reg$Term %in% terms
+write.csv(my_down_reg,"Down_regulated_extended.csv")
 #-----------------------------------7.3
 
 #average duplicates
