@@ -11,10 +11,6 @@ require(gridExtra)
 library(cowplot)
 require(grid)
 library(patchwork)
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-
-BiocManager::install("rrvgo")
 
 
 #Read Data
@@ -85,7 +81,7 @@ for (i in lists) {
 }
 
 # Additional plot code used for formatting using patchwork for layout however 
-# has issues running in for loop therefore kept the raw graphs above in loop 
+# has issues running in for loop therefore kept the raw graphs above in loop above
 # titles <- c('Sarcomere', 'Mitochodria', 'Cell Cycle')
 # p1 + p2 + plot_spacer() + plot_spacer() + plot_annotation(title = titles[w],tag_levels = 'i', tag_suffix = ')')
                     
@@ -157,6 +153,8 @@ grid.arrange(arrangeGrob(p1, p2,
             nrow = 2,
             left = textGrob("Count", rot = 90, vjust = 1)))
 dev.off()
+
+
 #-----------------------------------7.3
 
 #average duplicates
