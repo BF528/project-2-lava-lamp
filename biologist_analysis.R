@@ -11,15 +11,18 @@ require(gridExtra)
 library(cowplot)
 require(grid)
 library(patchwork)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
 
+BiocManager::install("rrvgo")
 
 
 #Read Data
-fpkm_0 <- read.table('/projectnb/bf528/users/lava_lamp/project_2/P0_1_cufflinks/genes.fpkm_tracking', header = TRUE)
+fpkm_0 <- read.table('P0_1_cufflinks/genes.fpkm_tracking', header = TRUE)
 fpkm_0 <- fpkm_0  %>%  select(FPKM, tracking_id, gene_short_name)
 colnames(fpkm_0) = gsub("FPKM", "P0_1", colnames(fpkm_0))
 fpkm_matrix <- read.csv('/project/bf528/project_2/data/fpkm_matrix.csv', sep =  "\t")
-list_de_genes <- read.delim("/projectnb/bf528/users/lava_lamp/project_2/cuffdiff_out/gene_exp.diff",
+list_de_genes <- read.delim("cuffdiff_out/gene_exp.diff",
                             header = TRUE, stringsAsFactors = FALSE, quote = "", sep = "\t")
 
 #combine fpkm p0_1 into rest and rename columns
@@ -28,6 +31,7 @@ fpkm_combined <- merge(fpkm_0, fpkm_matrix, by = 'tracking_id')
 fpkm_combined <- fpkm_combined %>% relocate(P0_1, .after = Ad_2)
 
 #-----------------------------------7.1
+#gene lists
 sarc_list <- c('Pdlim5', 'Pygm', 'Myoz2', 'Des', 'Csrp3', 'Tcap', 'Cryab')
 mito_list <- c("Mpc1","Prdx3","Acat1","Echs1","Slc25a11","Phyh")
 cell_list <- c("Cdc7","E2f8","Cdk7","Cdc26","Cdc6","Cdc27",
@@ -71,8 +75,6 @@ plot_lines <- function (df) {
 
 #for loop for plotting all graphs and saving into png
 w <- 3
-titles <- c('Sarcomere', 'Mitochodria', 'Cell Cycle')
-titles[w]
 for (i in lists) {
   file_name <- paste("line_plot", w, ".png", sep="")
   p1 <- plot_lines(reform_df(i, 1, fpkm_combined))
@@ -83,7 +85,8 @@ for (i in lists) {
 }
 
 # Additional plot code used for formatting using patchwork for layout however 
-#has issues running in for loop therefore kept the raw graphs above in loop 
+# has issues running in for loop therefore kept the raw graphs above in loop 
+# titles <- c('Sarcomere', 'Mitochodria', 'Cell Cycle')
 # p1 + p2 + plot_spacer() + plot_spacer() + plot_annotation(title = titles[w],tag_levels = 'i', tag_suffix = ')')
                     
 
@@ -106,11 +109,19 @@ colnames(my_up_reg) <- my_up_reg[2,]
 my_up_reg <- my_up_reg %>%
   filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
 
+#add True or False to new column if overlap occurs and write csv
 my_up_reg$Paper_ref_overlap <- my_up_reg$Term %in% terms
 write.csv(my_up_reg,"Up_regulated_extended.csv")
 
+#plot True and False 
+p1 <- ggplot(my_up_reg, aes(Paper_ref_overlap)) + geom_bar() + facet_grid(. ~Category) + 
+  ggtitle('Up Regulated Genes Overlap') +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("") +
+  ylab("")
 
 #down regulated ---------
+
 #read in reference paper analysis
 paper_down_reg <- read.csv("upreg_paperreference.csv", stringsAsFactors=FALSE, header = FALSE)  
 colnames(paper_down_reg) <- paper_down_reg[2,] 
@@ -127,27 +138,42 @@ colnames(my_down_reg) <- my_down_reg[2,]
 my_down_reg <- my_down_reg %>%
   filter(Category %in% c("GOTERM_MF_FAT","GOTERM_BP_FAT","GOTERM_CC_FAT"))
 
+#add True or False to new column if overlap occurs and write csv
 my_down_reg$Paper_ref_overlap <- my_down_reg$Term %in% terms
 write.csv(my_down_reg,"Down_regulated_extended.csv")
+
+#plot True and False 
+p2 <- ggplot(my_down_reg, aes(Paper_ref_overlap)) + geom_bar() + 
+  facet_grid(. ~Category) + 
+  ggtitle('Down Regulated Genes Overlap') +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("") +
+  xlab('Overlap')
+
+
+#save both up and down plots to png
+png('7.2_viz.png')
+grid.arrange(arrangeGrob(p1, p2,
+            nrow = 2,
+            left = textGrob("Count", rot = 90, vjust = 1)))
+dev.off()
 #-----------------------------------7.3
 
 #average duplicates
 fpkm_combined <- fpkm_combined[-1]
 fpkm_combined_1 <- aggregate(.~gene_short_name, data=fpkm_combined, mean)
 
-#get significant genes, get top 100 deferentially expressed genes 
-#list_de_genes  <- list_de_genes %>% arrange(q_value)  %>% slice_head(n=1000)
+#get significant genes, get top 120 deferentially expressed genes for p0 vs ad
 sig_de_genes  <- list_de_genes[list_de_genes$significant =='yes',]
 top  <- sig_de_genes %>% arrange(q_value)  %>% slice_head(n=120)
 deg <- top$gene
 length(unique(deg))
 
-#subset to top 100 genes 
+#subset all fpkm top 120 genes 
 fpkm_combined_sub <- fpkm_combined_1[fpkm_combined_1$gene_short_name %in% deg, ]
 
  
-#reformat create final_fpkm_combined and make genes row names, remove rows with all 0
-
+#make genes row names
 rownames( fpkm_combined_sub ) <- NULL
 fpkm_combined_sub <- data.frame(column_to_rownames(fpkm_combined_sub, var = "gene_short_name"))
 
@@ -159,7 +185,7 @@ my_colors = brewer.pal(n = 11, name = "RdBu")
 my_colors = colorRampPalette(my_colors)(50)
 my_colors = rev(my_colors)
 
-#saveheatmap
+#heatmap object
 my_heatmap <- pheatmap(a, scale = "row", color = my_colors,fontsize_row = 4,border_color = NA, clustering_distance_rows="euclidean",
          clustering_distance_cols="euclidean")
 
